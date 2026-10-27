@@ -22,16 +22,16 @@ jobs:
           - runner: ubuntu-24.04
             triplet: x64-linux
             archive: tar.gz
-          - runner: windows-2022
+          - runner: windows-2025
             triplet: x64-windows-static
             archive: zip
-          - runner: macos-14
+          - runner: macos-15
             triplet: arm64-osx
             archive: tar.gz
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Clone and bootstrap vcpkg
         if: runner.os != 'Windows'
@@ -109,7 +109,7 @@ jobs:
           Compress-Archive -Path 'bundle/*' -DestinationPath "dist/tesseract-$env:TRIPLET.zip" -Force
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tesseract-${{ matrix.triplet }}
           path: dist/tesseract-${{ matrix.triplet }}.${{ matrix.archive }}
@@ -124,10 +124,10 @@ jobs:
       contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: tesseract-*
           path: release-assets
