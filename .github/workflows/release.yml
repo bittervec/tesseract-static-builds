@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Serialize runs for the same tag, including reruns; never cancel an active release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build ${{ matrix.triplet }}
@@ -33,19 +38,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Clone and bootstrap vcpkg
+      - name: Check out pinned vcpkg and validate Tesseract version
+        shell: bash
+        run: python .github/scripts/checkout-vcpkg.py
+
+      - name: Bootstrap vcpkg
         if: runner.os != 'Windows'
         shell: bash
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
-          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+        run: '"$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics'
 
-      - name: Clone and bootstrap vcpkg
+      - name: Bootstrap vcpkg
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP\vcpkg"
-          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+        run: '& "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics'
 
       - name: Install Tesseract with vcpkg
         if: runner.os != 'Windows'
@@ -133,12 +138,9 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Create release and upload assets
+      - name: Create draft, upload assets, and publish
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: |
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title "$TAG" --generate-notes
-          fi
-          gh release upload "$TAG" release-assets/* --clobber
+        run: .github/scripts/publish-release.sh
