@@ -8,7 +8,7 @@ import tarfile
 import tempfile
 import unittest
 
-SCRIPTS = Path(__file__).resolve().parent
+SCRIPTS = Path(__file__).resolve().parent.parent / "bash"
 
 
 class BuildScriptsTests(unittest.TestCase):

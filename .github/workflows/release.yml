@@ -45,12 +45,12 @@ jobs:
       - name: Bootstrap vcpkg
         if: runner.os != 'Windows'
         shell: bash
-        run: bash .github/scripts/bootstrap-vcpkg.sh
+        run: bash .github/scripts/bash/bootstrap-vcpkg.sh
 
       - name: Bootstrap vcpkg
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./.github/scripts/bootstrap-vcpkg.ps1
+        run: ./.github/scripts/pwsh/bootstrap-vcpkg.ps1
 
       - name: Install Tesseract with vcpkg
         if: runner.os != 'Windows'
@@ -58,14 +58,14 @@ jobs:
         env:
           VCPKG_ROOT: ${{ runner.temp }}/vcpkg
           TRIPLET: ${{ matrix.triplet }}
-        run: bash .github/scripts/install-tesseract.sh
+        run: bash .github/scripts/bash/install-tesseract.sh
 
       - name: Install Tesseract with vcpkg
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           TRIPLET: ${{ matrix.triplet }}
-        run: ./.github/scripts/install-tesseract.ps1
+        run: ./.github/scripts/pwsh/install-tesseract.ps1
 
       - name: Package Tesseract binary
         if: runner.os != 'Windows'
@@ -73,14 +73,14 @@ jobs:
         env:
           TRIPLET: ${{ matrix.triplet }}
           VCPKG_ROOT: ${{ runner.temp }}/vcpkg
-        run: bash .github/scripts/package-tesseract.sh
+        run: bash .github/scripts/bash/package-tesseract.sh
 
       - name: Package Tesseract binary
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           TRIPLET: ${{ matrix.triplet }}
-        run: ./.github/scripts/package-tesseract.ps1
+        run: ./.github/scripts/pwsh/package-tesseract.ps1
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
@@ -112,4 +112,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: .github/scripts/publish-release.sh
+        run: .github/scripts/bash/publish-release.sh

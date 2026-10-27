@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPT = Path(__file__).with_name("publish-release.sh")
+SCRIPT = Path(__file__).resolve().parent.parent / "bash" / "publish-release.sh"
 ASSETS = [
     "tesseract-arm64-linux.tar.gz",
     "tesseract-x64-linux.tar.gz",

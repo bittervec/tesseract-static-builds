@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location("checkout_vcpkg", Path(__file__).with_name("checkout-vcpkg.py"))
+spec = importlib.util.spec_from_file_location("checkout_vcpkg", Path(__file__).resolve().parent.parent / "checkout-vcpkg.py")
 checkout = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checkout)
 COMMIT = "a" * 40
