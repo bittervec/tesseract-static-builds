@@ -1,0 +1,141 @@
+name: Build and release Tesseract
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.triplet }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04-arm
+            triplet: arm64-linux
+            archive: tar.gz
+          - runner: ubuntu-24.04
+            triplet: x64-linux
+            archive: tar.gz
+          - runner: windows-2022
+            triplet: x64-windows-static
+            archive: zip
+          - runner: macos-14
+            triplet: arm64-osx
+            archive: tar.gz
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Clone and bootstrap vcpkg
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Clone and bootstrap vcpkg
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP\vcpkg"
+          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Install Tesseract with vcpkg
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+        run: >-
+          "$VCPKG_ROOT/vcpkg" install tesseract
+          --triplet="${{ matrix.triplet }}"
+          --disable-metrics
+
+      - name: Install Tesseract with vcpkg
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          & "$env:RUNNER_TEMP\vcpkg\vcpkg.exe" install tesseract
+          --triplet=${{ matrix.triplet }}
+          --disable-metrics
+
+      - name: Package Tesseract binary
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+          VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+        run: |
+          set -euo pipefail
+          installed="$VCPKG_ROOT/installed/$TRIPLET"
+          binary="$(find "$installed" -type f -name tesseract -print -quit)"
+          if [[ -z "$binary" ]]; then
+            echo "Could not find the Tesseract executable in $installed" >&2
+            exit 1
+          fi
+
+          mkdir -p bundle dist
+          cp "$binary" bundle/
+          # Include runtime libraries installed alongside the executable.
+          if [[ -d "$installed/bin" ]]; then
+            cp -a "$installed/bin/." bundle/
+          fi
+          tar -C bundle -czf "dist/tesseract-${TRIPLET}.tar.gz" .
+
+      - name: Package Tesseract binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+        run: |
+          $installed = Join-Path $env:RUNNER_TEMP "vcpkg\installed\$env:TRIPLET"
+          $binary = Get-ChildItem $installed -Filter 'tesseract.exe' -File -Recurse | Select-Object -First 1
+          if ($null -eq $binary) {
+            throw "Could not find the Tesseract executable in $installed"
+          }
+
+          New-Item -ItemType Directory -Force -Path bundle, dist | Out-Null
+          Copy-Item $binary.FullName bundle/
+          $binDirectory = Join-Path $installed 'bin'
+          if (Test-Path $binDirectory) {
+            Copy-Item (Join-Path $binDirectory '*') bundle/ -Recurse -Force
+          }
+          Compress-Archive -Path 'bundle/*' -DestinationPath "dist/tesseract-$env:TRIPLET.zip" -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tesseract-${{ matrix.triplet }}
+          path: dist/tesseract-${{ matrix.triplet }}.${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish release assets
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tesseract-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" release-assets/* --clobber
