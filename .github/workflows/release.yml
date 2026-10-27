@@ -45,30 +45,27 @@ jobs:
       - name: Bootstrap vcpkg
         if: runner.os != 'Windows'
         shell: bash
-        run: '"$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics'
+        run: bash .github/scripts/bootstrap-vcpkg.sh
 
       - name: Bootstrap vcpkg
         if: runner.os == 'Windows'
         shell: pwsh
-        run: '& "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics'
+        run: ./.github/scripts/bootstrap-vcpkg.ps1
 
       - name: Install Tesseract with vcpkg
         if: runner.os != 'Windows'
         shell: bash
         env:
           VCPKG_ROOT: ${{ runner.temp }}/vcpkg
-        run: >-
-          "$VCPKG_ROOT/vcpkg" install tesseract
-          --triplet="${{ matrix.triplet }}"
-          --disable-metrics
+          TRIPLET: ${{ matrix.triplet }}
+        run: bash .github/scripts/install-tesseract.sh
 
       - name: Install Tesseract with vcpkg
         if: runner.os == 'Windows'
         shell: pwsh
-        run: >-
-          & "$env:RUNNER_TEMP\vcpkg\vcpkg.exe" install tesseract
-          --triplet=${{ matrix.triplet }}
-          --disable-metrics
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+        run: ./.github/scripts/install-tesseract.ps1
 
       - name: Package Tesseract binary
         if: runner.os != 'Windows'
@@ -76,42 +73,14 @@ jobs:
         env:
           TRIPLET: ${{ matrix.triplet }}
           VCPKG_ROOT: ${{ runner.temp }}/vcpkg
-        run: |
-          set -euo pipefail
-          installed="$VCPKG_ROOT/installed/$TRIPLET"
-          binary="$(find "$installed" -type f -name tesseract -print -quit)"
-          if [[ -z "$binary" ]]; then
-            echo "Could not find the Tesseract executable in $installed" >&2
-            exit 1
-          fi
-
-          mkdir -p bundle dist
-          cp "$binary" bundle/
-          # Include runtime libraries installed alongside the executable.
-          if [[ -d "$installed/bin" ]]; then
-            cp -a "$installed/bin/." bundle/
-          fi
-          tar -C bundle -czf "dist/tesseract-${TRIPLET}.tar.gz" .
+        run: bash .github/scripts/package-tesseract.sh
 
       - name: Package Tesseract binary
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           TRIPLET: ${{ matrix.triplet }}
-        run: |
-          $installed = Join-Path $env:RUNNER_TEMP "vcpkg\installed\$env:TRIPLET"
-          $binary = Get-ChildItem $installed -Filter 'tesseract.exe' -File -Recurse | Select-Object -First 1
-          if ($null -eq $binary) {
-            throw "Could not find the Tesseract executable in $installed"
-          }
-
-          New-Item -ItemType Directory -Force -Path bundle, dist | Out-Null
-          Copy-Item $binary.FullName bundle/
-          $binDirectory = Join-Path $installed 'bin'
-          if (Test-Path $binDirectory) {
-            Copy-Item (Join-Path $binDirectory '*') bundle/ -Recurse -Force
-          }
-          Compress-Archive -Path 'bundle/*' -DestinationPath "dist/tesseract-$env:TRIPLET.zip" -Force
+        run: ./.github/scripts/package-tesseract.ps1
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
