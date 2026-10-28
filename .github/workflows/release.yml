@@ -27,12 +27,12 @@ jobs:
           - runner: ubuntu-24.04
             triplet: x64-linux
             archive: tar.gz
-          # - runner: windows-2025
-          #   triplet: x64-windows-static
-          #   archive: zip
-          # - runner: macos-15
-          #   triplet: arm64-osx
-          #   archive: tar.gz
+          - runner: windows-2025
+            triplet: x64-windows-static
+            archive: zip
+          - runner: macos-15
+            triplet: arm64-osx
+            archive: tar.gz
 
     steps:
       - name: Check out repository
