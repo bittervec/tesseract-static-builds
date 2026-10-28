@@ -58,7 +58,7 @@ git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null
 # Create, never look up by tag for mutation. GitHub may allow multiple drafts
 # for one tag, so recheck after creation and address only the returned release ID.
 created=$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
-  -f tag_name="$TAG" -f name="$TAG" -F draft=true -F generate_release_notes=true)
+  -f tag_name="$TAG" -f name="$TAG" -F draft=true -F generate_release_notes=false)
 release_id=$(jq -er --arg tag "$TAG" \
   'select(.tag_name == $tag and .draft == true) | .id | select(type == "number" and . > 0 and floor == .)' <<<"$created")
 printf 'Created draft %s for %s\n' "$release_id" "$TAG"
